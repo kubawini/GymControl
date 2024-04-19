@@ -4,14 +4,15 @@ import random
 # Hyper parameters
 simulation_steps = 500
 population_count = 200
-crossing_population_count = int(population_count + population_count/10*4)
+crossing_population_count = int(population_count - population_count/10*4)
 number_of_pairs = int(4 * population_count / 10)
-tournament_population = 20
-generation_count = 100
+tournament_population = 40
+generation_count = 20
 space_dimension = 2
 max_probability_of_mutation = 0.7
 best_individual = None
 best_result = 0
+best_result_index = -1
 
 
 
@@ -19,10 +20,11 @@ best_result = 0
 ### MAIN FUNCTION ###
 def run(env:gym.Env) -> list:
     population = initialize_population(population_count)
-    for _ in range(generation_count):
-        selection(population)
+    for i in range(generation_count):
+        print('i: ' + str(i))
+        selection(population, env)
         crossing(population, env)
-        mutation(population)
+        mutation(population, env)
     result = best_result
     moves = best_individual.copy()
     return result, moves
@@ -41,13 +43,31 @@ def initialize_population(count:int):
     return population
 
 # TODO Random selection - maybe upgrade to proportional selection?
-def selection(population:list):
-    for _ in range(crossing_population_count - population_count):
-        index = random.randint(0, population_count - 1)
-        new_individual = population[index].copy()
-        population.append(new_individual)
+def selection(population:list, env:gym.Env):
+    sum = count_sum(population, env)
+    for i in range(crossing_population_count - population_count):
+    #    index = random.randint(0, population_count - 1)
+    #    new_individual = population[index].copy()
+    #    population.append(new_individual)
+        probability_representation = random.randint(0, sum)
+        index_to_delete = choose_individual(population, probability_representation, env)
+        if index_to_delete != best_result_index:
+            population.pop()
     return population # TODO I think it's useless
 
+def count_sum(population:list, env:gym.Env):
+    sum = 0.0
+    for individual in population:
+        sum += 1 / count_target_function(individual, env)
+    return sum
+
+def choose_individual(population:list, index:int, env:gym.Env):
+    i = 0
+    sum = 0.0
+    while index >= sum:
+        sum += 1 / count_target_function(population[i],env)
+        i += 1
+    return i
 
 def crossing(population:list, env:gym.Env):
     for i in range(number_of_pairs):
@@ -60,22 +80,29 @@ def crossing(population:list, env:gym.Env):
     return population # TODO this line is actually not needed
     
 
-def mutation(population:list):
+def mutation(population:list, env:gym.Env):
     for individual in population:
+        individual_target_function = count_target_function(individual, env)
         for i in range(len(individual)):
-            if random.random() < max_probability_of_mutation * (min(1, 100 * i/best_result)):
+            rand = random.random()
+            if (i >= individual_target_function and rand < 0.5) or (i >= individual_target_function - 15 and rand < 0.2) or (rand < max_probability_of_mutation *
+                                                    (min(1, i/(individual_target_function * 10)))):
                 if individual[i] == 0:
                     individual[i] = 1
                 else:
                     individual[i] = 0
+    population.pop(0)
+    population.append(best_individual.copy())
+    global best_result_index
+    best_result_index = len(population) - 1
     return population # TODO Do I really need this?
 
 
-def count_target_function(individual:list, env:gym.Env):
+def count_target_function(individual:list, env:gym.Env, ind=-1):
     sum = 0
     for i in range(simulation_steps):
         step = individual[i]
-        observation, reward, terminated, truncated, _ = env.step(step)
+        observation, reward, terminated, truncated = env.step(step)
         sum += reward
         if terminated or truncated:
             break
@@ -85,6 +112,7 @@ def count_target_function(individual:list, env:gym.Env):
     if sum > best_result:
         best_individual = individual.copy()
         best_result = sum
+        best_result_index = ind
         print(best_result)
     return sum
 
@@ -124,16 +152,16 @@ def set_hyperparameters(sim_st=None, pop_cnt=None, cr_pop_cnt=None,
 # Rest of functions #  
 def get_two_winners(indexes_of_competitors1:list, indexes_of_competitors2:list, population:list, env:gym.Env):
     competitor1 = indexes_of_competitors1[0]
-    max_function1 = count_target_function(population[competitor1], env)
+    max_function1 = count_target_function(population[competitor1], env, 0)
     competitor2 = indexes_of_competitors2[0]        
-    max_function2 = count_target_function(population[competitor2], env)
+    max_function2 = count_target_function(population[competitor2], env, 0)
     for index in indexes_of_competitors1:
-        index_target_function = count_target_function(population[index], env)
+        index_target_function = count_target_function(population[index], env, index)
         if (index_target_function > max_function1):
             competitor1 = index
             max_function1 = index_target_function
     for index in indexes_of_competitors2:
-        index_target_function = count_target_function(population[index], env)
+        index_target_function = count_target_function(population[index], env, index)
         if (index_target_function > max_function2):
             competitor2 = index
             max_function2 = index_target_function
@@ -145,11 +173,11 @@ def cross(parent1_index:int, parent2_index:int, population:list):
         if parent1_index > parent2_index:
             parent1_index, parent2_index = parent2_index, parent1_index
         child = natural_crossing(parent1_index, parent2_index, population)
-        population.pop(parent2_index)
-        population.pop(parent1_index)
+    #    population.pop(parent2_index)
+    #    population.pop(parent1_index)
         population.append(child)
-    else:
-        population.pop(parent1_index) # TODO This makes no sense to delete the best parent
+    #else:
+    #    population.pop(parent1_index) # TODO This makes no sense to delete the best parent
 
 
 def natural_crossing(parent1_index:int, parent2_index:int, population:list):
