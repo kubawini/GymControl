@@ -2,7 +2,7 @@
 
 ## About project
 
-This is a project for Introduction to Evolutionary Algorithms (MiNI faculty). Program solves gym library task Cart Pole, located under the <a href="https://www.gymlibrary.dev/environments/classic_control/cart_pole/"> link </a>. Problem is solved using three algorithms: evolutionary algorithm, neural network and ...
+This is a project for Introduction to Evolutionary Algorithms (MiNI faculty). Program solves gym library task Cart Pole, located under the <a href="https://www.gymlibrary.dev/environments/classic_control/cart_pole/"> link</a>. Problem is solved using three algorithms: evolutionary algorithm, neural network and ...
 
 ## Prerequsities
 In order to run Python scrypts, you haave to download the packages in following versions:
