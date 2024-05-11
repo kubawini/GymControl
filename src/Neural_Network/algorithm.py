@@ -28,7 +28,7 @@ def construct_neural_network(env:gym.Env):
     )
 
     agent.compile(Adam(lr=0.001), metrics=["mae"])
-    agent.fit(env, nb_steps=10000, visualize=False, verbose=1)
+    agent.fit(env, nb_steps=100000, visualize=False, verbose=1)
 
     return agent
     

@@ -1,211 +1,135 @@
 import gym
 import random
 
-# Hyper parameters
-simulation_steps = 500
-population_count = 200
-crossing_population_count = int(population_count - population_count/10*4)
-number_of_pairs = int(4 * population_count / 10)
-tournament_population = 100
-generation_count = 20
-space_dimension = 2
-max_probability_of_mutation = 0.7
-best_individual = None
-best_result = 0
-best_result_index = -1
+import numpy as np
 
+# Hyper parameters
+class HyperParameters:
+    def __init__(self, sim_st=500, pop_cnt=200, gen_cnt=1000, sp_dim=2, pr_mut=1):
+        self.simulation_steps = sim_st
+        self.population_count = pop_cnt
+        self.generation_count = gen_cnt
+        self.space_dimension = sp_dim
+        self.probability_of_mutation = pr_mut
+        self.best_individual = None
+        self.best_result = 0
+        self.best_result_index = -1
+
+    def set_hyperparameters(self, sim_st=None, pop_cnt=None, gen_cnt=None, sp_dim=None, pr_mut=None):
+        if not sim_st == None:
+            self.simulation_steps = sim_st
+        if not pop_cnt == None:
+            self.population_count = pop_cnt
+        if not gen_cnt == None:
+            self.generation_count = gen_cnt
+        if not sp_dim == None:
+            self.space_dimension = sp_dim
+        if not pr_mut == None:
+            self.probability_of_mutation = pr_mut
+
+    def reset_algorithm(self):
+        self.best_individual = None
+        self.best_result = 0
+
+import gym
+
+def test(hp:HyperParameters):
+    env2 = gym.make("CartPole-v1")
+    env2.action_space.seed(42)
+    env2.reset(seed=42)
+    _, solution = run(env2)
+    print(hp.best_result)
+    print(hp.best_individual)
+
+    env = gym.make("CartPole-v1", render_mode="human")
+    env.action_space.seed(42)
+    env.reset(seed=42)
+
+    for _ in range(5):
+        env.reset(seed=42)
+        for step in solution:
+            observation, reward, terminated, truncated = env.step(step)
+
+            if terminated or truncated:
+                break
+
+    env.close()
 
 
 
 ### MAIN FUNCTION ###
-def run(env:gym.Env) -> list:
-    population = initialize_population(population_count)
-    for i in range(generation_count):
-        print('i: ' + str(i))
-        selection(population, env)
-        crossing(population, env)
-        mutation(population, env)
-    result = best_result
-    moves = best_individual.copy()
-    return result, moves
+def run(env:gym.Env, hp:HyperParameters) -> list:
+    population = initialize_population(hp.population_count, hp)
+    scores = [0] * len(population)
+    count_scores(population, scores, env, hp)
+    save_best(population, scores, hp)
+    iterations = 0
+    for i in range(hp.generation_count):
+        mutation(population,scores, env, hp)
+        count_scores(population, scores, env, hp)
+        save_best(population, scores, hp)
+        if int(hp.best_result) >= 500:
+            iterations = i
+            break
+    result = hp.best_result
+    moves = hp.best_individual.copy()
+    return result, moves, iterations
 
 
 
 ### Main components ###
-def initialize_population(count:int):
+def initialize_population(count:int, hp:HyperParameters):
     population = list()
-    for _ in range(population_count):
+    for _ in range(hp.population_count):
         single = list()
-        for _ in range(simulation_steps):
-            decision = random.randint(0,space_dimension-1)
+        for _ in range(hp.simulation_steps):
+            decision = random.randint(0,hp.space_dimension-1)
             single.append(decision)
         population.append(single)
     return population
 
+def mutation(population:list, scores:list, env:gym.Env, hp:HyperParameters):
+    for i in range(len(population)):
+            individual_target_function = max(0, scores[i] - 10)
+            individual = population[i]
+            for j in range(len(individual)):
+                rand = random.random()
+                if j >= individual_target_function:
+                    fulfill_random(individual, j, hp)
+                    break
 
-def selection(population:list, env:gym.Env):
-    sum = count_sum(population, env)
-    for i in range(crossing_population_count - population_count):
-        probability_representation = random.randint(0, sum)
-        index_to_delete = choose_individual(population, probability_representation, env)
-        if index_to_delete != best_result_index:
-            population.pop()
+def fulfill_random(individual:list, index:int, hp:HyperParameters):
+    for i in range(index, hp.simulation_steps):
+        if(random.random() < hp.probability_of_mutation):
+            individual[i] = random.randint(0,1)
 
-
-def crossing(population:list, env:gym.Env):
-    for i in range(number_of_pairs):
-        indexes_of_competitors1 = list()
-        indexes_of_competitors2 = list()
-        set_tournament_indexes(tournament_population,crossing_population_count - i,
-                           indexes_of_competitors1,indexes_of_competitors2)
-        parent1_index, parent2_index = get_two_winners(indexes_of_competitors1,indexes_of_competitors2, population, env)
-        cross(parent1_index,parent2_index,population)
-    
-
-def mutation(population:list, env:gym.Env):
-    for individual in population:
-        individual_target_function = count_target_function(individual, env)
-        for i in range(len(individual)):
-            rand = random.random()
-            if i >= individual_target_function:
-                fulfill_random(individual, i)
-                break
-            elif (i >= individual_target_function and rand < 0.5) or (i >= individual_target_function - 15 and rand < 0.2) or (rand < max_probability_of_mutation *
-                                                    (min(1, i/(individual_target_function * 10)))):
-                if individual[i] == 0:
-                    individual[i] = 1
-                else:
-                    individual[i] = 0
-    population.pop(0)
-    population.append(best_individual.copy())
-    global best_result_index
-    best_result_index = len(population) - 1
-
-
-def count_target_function(individual:list, env:gym.Env, ind=-1):
+def count_score(individual:list, env:gym.Env, hp:HyperParameters):
     sum = 0
-    for i in range(simulation_steps):
+    for i in range(hp.simulation_steps):
         step = individual[i]
         _, reward, terminated, truncated = env.step(step)
         sum += reward
         if terminated or truncated:
             break
     env.reset(seed=42)
-    global best_result
-    global best_individual
-    global best_result_index
-    if sum > best_result:
-        best_individual = individual.copy()
-        best_result = sum
-        best_result_index = ind
-        print(best_result)
     return sum
 
 
+def count_scores(population:list, scores:list, env:gym.Env, hp:HyperParameters):
+    for i in range(len(population)):
+        scores[i] = count_score(population[i], env, hp)
 
-
-# Configuration #
-def reset_algorithm():
-    global best_individual, best_result
-    best_individual = None
-    best_result = 0
-
-def set_hyperparameters(sim_st=None, pop_cnt=None, cr_pop_cnt=None,
-                        nr_p=None, t_pop=None, gen_cnt=None, sp_dim=None, pr_mut=None):
-    global simulation_steps, population_count, crossing_population_count, number_of_pairs
-    global tournament_population, generation_count, space_dimension, max_probability_of_mutation
-    if not sim_st == None:
-        simulation_steps = sim_st
-    if not pop_cnt == None:
-        population_count = pop_cnt
-    if not cr_pop_cnt == None:
-        crossing_population_count = cr_pop_cnt
-    if not nr_p == None:
-        number_of_pairs = nr_p
-    if not t_pop == None:
-        tournament_population = t_pop
-    if not gen_cnt == None:
-        generation_count = gen_cnt
-    if not sp_dim == None:
-        space_dimension = sp_dim
-    if not pr_mut == None:
-        max_probability_of_mutation = pr_mut
+def save_best(population:list, scores:list, hp:HyperParameters):
+    best_population_score = max(scores)
+    best_population_index = scores.index(best_population_score)
+    if best_population_score > hp.best_result:
+        hp.best_result_index = best_population_index
+        hp.best_result = best_population_score
+        hp.best_individual = population[best_population_index].copy()
+    population[0] = hp.best_individual.copy()
+    scores[0] = hp.best_result
+    hp.best_result_index = 0
 
 
 
-
-# Rest of functions #  
-def get_two_winners(indexes_of_competitors1:list, indexes_of_competitors2:list, population:list, env:gym.Env):
-    competitor1 = indexes_of_competitors1[0]
-    max_function1 = count_target_function(population[competitor1], env, 0)
-    competitor2 = indexes_of_competitors2[0]        
-    max_function2 = count_target_function(population[competitor2], env, 0)
-    for index in indexes_of_competitors1:
-        index_target_function = count_target_function(population[index], env, index)
-        if (index_target_function > max_function1):
-            competitor1 = index
-            max_function1 = index_target_function
-    for index in indexes_of_competitors2:
-        index_target_function = count_target_function(population[index], env, index)
-        if (index_target_function > max_function2):
-            competitor2 = index
-            max_function2 = index_target_function
-    return competitor1, competitor2
-
-
-def cross(parent1_index:int, parent2_index:int, population:list):
-    if parent1_index != parent2_index:
-        if parent1_index > parent2_index:
-            parent1_index, parent2_index = parent2_index, parent1_index
-        child = natural_crossing(parent1_index, parent2_index, population)
-        population.append(child)
-
-
-def natural_crossing(parent1_index:int, parent2_index:int, population:list):
-    parent1:list = population[parent1_index]
-    parent2:list = population[parent2_index]
-    child = list()
-    for i in range(simulation_steps):
-        winning_chromosome = random.randint(0,space_dimension - 1)
-        if winning_chromosome == 0:
-            child.append(parent1[i])
-        else:
-            child.append(parent2[i])
-    return child
-
-
-def generate_random_index(crossing_population_count:int):
-    index = random.randint(0,crossing_population_count - 1)
-    return index
-    
-
-def set_tournament_index(crossing_population_count:int,indexes_of_competitors:list):
-    indexes_of_competitors.append(generate_random_index(crossing_population_count))
-
-
-def set_tournament_indexes(tournament_population:int,crossing_population_count:int,
-                           indexes_of_competitors1:list,indexes_of_competitors2:list):
-    for i in range(tournament_population):
-        set_tournament_index(crossing_population_count, indexes_of_competitors1)
-        set_tournament_index(crossing_population_count, indexes_of_competitors2)
-
-
-def count_sum(population:list, env:gym.Env):
-    sum = 0.0
-    for individual in population:
-        sum += 1 / count_target_function(individual, env)
-    return sum
-
-
-def choose_individual(population:list, index:int, env:gym.Env):
-    i = 0
-    sum = 0.0
-    while index >= sum:
-        sum += 1 / count_target_function(population[i],env)
-        i += 1
-    return i
-
-
-def fulfill_random(individual:list, index:int):
-    for i in range(index, simulation_steps):
-        individual[i] = random.randint(0,1)
+# test()

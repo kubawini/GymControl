@@ -10,6 +10,7 @@ root = alg.MonteCarloTreeSearchNode(state = alg.State(env, False, False))
 while not root.is_terminal_node() and len(solution) < 500:
     selected_node = root.best_action()
     solution.append(selected_node.parent_action)
+    print(selected_node.parent_action)
     root = selected_node
 
 print("Solution length: " + str(len(solution)) + ", solution: " + str(solution))
