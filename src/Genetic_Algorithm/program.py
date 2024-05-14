@@ -5,9 +5,11 @@ import algorithm
 env2 = gym.make("CartPole-v1")
 env2.action_space.seed(42)
 env2.reset(seed=42)
-_, solution = algorithm.run(env2)
-print(algorithm.best_result)
-print(algorithm.best_individual)
+
+hp = algorithm.HyperParameters()
+solution = algorithm.run(env2, hp)
+print(hp.best_result)
+print(hp.best_individual)
 
 env = gym.make("CartPole-v1", render_mode="human")
 env.action_space.seed(42)

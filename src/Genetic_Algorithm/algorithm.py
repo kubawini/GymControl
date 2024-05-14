@@ -68,6 +68,7 @@ def run(env:gym.Env, hp:HyperParameters) -> list:
         mutation(population,scores, env, hp)
         count_scores(population, scores, env, hp)
         save_best(population, scores, hp)
+        # print(str(i) + ': ' + str(hp.best_result) + ', ')
         if int(hp.best_result) >= 500:
             iterations = i
             break

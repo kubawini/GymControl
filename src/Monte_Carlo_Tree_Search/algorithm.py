@@ -3,11 +3,9 @@ from collections import defaultdict
 import gym
 import copy
 
-tree_depth = 5
-simulation_no = 10
 
 class MonteCarloTreeSearchNode():
-    def __init__(self, state, parent=None, parent_action=None):
+    def __init__(self, state, parent=None, parent_action=None, tree_depth=5, simulation_no=10):
         self.state = state
         self.parent = parent
         self.parent_action = parent_action
@@ -18,6 +16,8 @@ class MonteCarloTreeSearchNode():
         self._results[-1] = 0
         self._untried_actions = None
         self._untried_actions = self.untried_actions()
+        self.tree_depth = tree_depth
+        self.simulation_no = simulation_no
         return
     
     def untried_actions(self):
@@ -45,7 +45,7 @@ class MonteCarloTreeSearchNode():
     def rollout(self):
         current_rollout_state = self.state
         i = 0
-        while not current_rollout_state.is_game_over() and i < tree_depth:
+        while not current_rollout_state.is_game_over() and i < self.tree_depth:
             possible_moves = current_rollout_state.get_legal_actions()
             action = self.rollout_policy(possible_moves)
             current_rollout_state = current_rollout_state.move(action)
@@ -71,7 +71,7 @@ class MonteCarloTreeSearchNode():
     def _tree_policy(self):
         current_node = self
         i = 0
-        while not current_node.is_terminal_node() and i < tree_depth:
+        while not current_node.is_terminal_node() and i < self.tree_depth:
             if not current_node.is_fully_expanded():
                 return current_node.expand()
             else:
@@ -80,7 +80,7 @@ class MonteCarloTreeSearchNode():
         return current_node
     
     def best_action(self):
-        for i in range(simulation_no):
+        for i in range(self.simulation_no):
             v = self._tree_policy()
             reward = v.rollout()
             v.backpropagate(reward)

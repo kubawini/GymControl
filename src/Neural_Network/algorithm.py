@@ -8,14 +8,16 @@ from rl.agents import DQNAgent
 from rl.policy import BoltzmannQPolicy
 from rl.memory import SequentialMemory
 
-def construct_neural_network(env:gym.Env):
+def construct_neural_network(env:gym.Env, layers=2, activation="relu", epochs=10000):
     states = env.observation_space.shape[0]
     actions = env.action_space.n
 
     model = Sequential()
     model.add(Flatten(input_shape=(1, states)))
-    model.add(Dense(24, activation="relu"))
-    model.add(Dense(24, activation="relu"))
+
+    for _ in range(layers):
+        model.add(Dense(24, activation=activation))
+
     model.add(Dense(actions, activation="linear"))
 
     agent = DQNAgent(
@@ -28,7 +30,7 @@ def construct_neural_network(env:gym.Env):
     )
 
     agent.compile(Adam(lr=0.001), metrics=["mae"])
-    agent.fit(env, nb_steps=100000, visualize=False, verbose=1)
+    agent.fit(env, nb_steps=epochs, visualize=False, verbose=0)
 
     return agent
     
