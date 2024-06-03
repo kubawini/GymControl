@@ -7,7 +7,7 @@ env2.action_space.seed(42)
 env2.reset(seed=42)
 
 hp = algorithm.HyperParameters()
-solution = algorithm.run(env2, hp)
+_, solution, _ = algorithm.run(env2, hp)
 print(hp.best_result)
 print(hp.best_individual)
 
